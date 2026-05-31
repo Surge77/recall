@@ -42,6 +42,17 @@ keeps working — the tool never breaks because an LLM is unavailable.
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+.
 
+**One-step install** (checks Python, installs `uv` if missing, installs the
+`recall` command globally, and wires the shell hook):
+
+```bash
+git clone https://github.com/Surge77/recall
+cd recall
+./scripts/install.sh
+```
+
+**Manual / development install:**
+
 ```bash
 git clone https://github.com/Surge77/recall
 cd recall
@@ -73,6 +84,24 @@ recall sync --path ~/Dropbox/recall.db   # symlink the DB for cross-machine sync
 > **Platform note:** the auto-capture hook targets **zsh** and **bash**. Native
 > Windows PowerShell capture is not supported yet; on Windows use WSL or
 > Git Bash. All other commands work on every platform.
+
+---
+
+## Uninstall
+
+```bash
+uv tool uninstall recall-cli
+```
+
+Then remove the hook block (marked `# recall auto-capture hook`) from your
+`~/.zshrc` or `~/.bashrc`. Your snippets live in a single data file; delete it
+only if you want to discard them:
+
+```bash
+# Linux:   ~/.local/share/recall/recall.db
+# macOS:   ~/Library/Application Support/recall/recall.db
+# Windows: %LOCALAPPDATA%\recall\recall.db
+```
 
 ---
 
