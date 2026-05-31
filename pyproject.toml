@@ -52,6 +52,9 @@ packages = ["src/recall"]
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = ["src"]
+markers = [
+    "integration: tests that need the optional 'semantic' extra (skipped otherwise)",
+]
 
 [tool.coverage.run]
 source = ["src/recall"]
