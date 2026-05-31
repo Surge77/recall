@@ -20,29 +20,34 @@ COLLECTION_NAME = "snippets"
 DEFAULT_N_RESULTS = 10
 
 
+def _silence_embedding_noise() -> None:
+    """Quiet HuggingFace/transformers download bars and warnings.
+
+    Runs before the embedding stack is first imported so the model-load
+    progress bar and the 'set a HF_TOKEN' notice never reach the user's
+    terminal. Idempotent; safe even when the extra is not installed.
+    """
+    import logging as _logging
+    import os as _os
+    import warnings as _warnings
+
+    _os.environ.setdefault("HF_HUB_VERBOSITY", "error")
+    _os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    _os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+    _os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    _warnings.filterwarnings("ignore", message=".*unauthenticated requests.*")
+    for noisy in ("huggingface_hub", "transformers", "sentence_transformers"):
+        _logging.getLogger(noisy).setLevel(_logging.ERROR)
+
+
 def is_available() -> bool:
     """True if the optional semantic stack (chromadb) is importable."""
+    _silence_embedding_noise()
     try:
         import chromadb  # noqa: F401
     except ImportError:
         return False
     return True
-
-
-def _silence_embedding_noise() -> None:  # pragma: no cover - needs heavy extra
-    """Quiet HuggingFace/transformers download bars and warnings.
-
-    Must run before the embedding stack is imported, otherwise the model-load
-    progress bar and the 'set a HF_TOKEN' notice leak into the user's terminal.
-    """
-    import logging as _logging
-    import os as _os
-
-    _os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
-    _os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
-    _os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
-    for noisy in ("huggingface_hub", "transformers", "sentence_transformers"):
-        _logging.getLogger(noisy).setLevel(_logging.ERROR)
 
 
 def _build_collection(chroma_path: Path) -> Any:  # pragma: no cover - needs heavy extra
