@@ -36,8 +36,12 @@ def copy_to_clipboard(text: str) -> None:
 
 
 def render_snippets(snippets: list[Snippet]) -> None:
-    """Print snippets as a rich table (id, command, description, runs)."""
-    table = Table(show_lines=False, expand=False)
+    """Print snippets as a rich table (id, command, description, runs).
+
+    ``show_lines`` draws a rule between rows so each (often multi-line) snippet
+    reads as one clearly separated block.
+    """
+    table = Table(show_lines=True, expand=False)
     table.add_column("ID", justify="right", style="cyan", no_wrap=True)
     table.add_column("Command", style="green", overflow="fold")
     table.add_column("Description", overflow="fold")

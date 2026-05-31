@@ -29,8 +29,25 @@ def is_available() -> bool:
     return True
 
 
+def _silence_embedding_noise() -> None:  # pragma: no cover - needs heavy extra
+    """Quiet HuggingFace/transformers download bars and warnings.
+
+    Must run before the embedding stack is imported, otherwise the model-load
+    progress bar and the 'set a HF_TOKEN' notice leak into the user's terminal.
+    """
+    import logging as _logging
+    import os as _os
+
+    _os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+    _os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+    _os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    for noisy in ("huggingface_hub", "transformers", "sentence_transformers"):
+        _logging.getLogger(noisy).setLevel(_logging.ERROR)
+
+
 def _build_collection(chroma_path: Path) -> Any:  # pragma: no cover - needs heavy extra
     """Create or load the persistent Chroma collection with embeddings."""
+    _silence_embedding_noise()
     import chromadb
     from chromadb.utils import embedding_functions
 
