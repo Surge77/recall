@@ -1,6 +1,11 @@
 # --- Agent / development-only files (intentionally NOT published) ---
 CLAUDE.md
 .claude/
+# Internal dev/design docs — kept locally, never published to the public repo
+CONTRIBUTING.md
+docs/ROADMAP.md
+docs/ARCHITECTURE.md
+docs/decisions/
 
 # --- Python ---
 __pycache__/

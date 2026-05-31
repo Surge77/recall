@@ -4,7 +4,6 @@
 > incantation — Recall captures your long shell commands, describes them in
 > plain English, and lets you find them again by *meaning*, not exact wording.
 
-[![Tests](https://img.shields.io/badge/tests-pytest-blue)](#testing)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](pyproject.toml)
 
@@ -24,62 +23,42 @@ Everything runs **locally and free** by default. No account, no cloud, no
 telemetry. The single `recall.db` file is the whole product — copy it to a new
 machine and you are done.
 
----
+## Free by default
 
-## Why "free and open source"
+The AI description step is pluggable:
 
-The AI description step is **pluggable** (see
-[ADR-0002](docs/decisions/0002-ai-provider-abstraction.md)):
-
-| Provider    | Cost            | Needs            | Default |
-| ----------- | --------------- | ---------------- | ------- |
-| `ollama`    | Free, offline   | Ollama installed | ✅ yes   |
-| `heuristic` | Free, offline   | nothing          | fallback |
-| `claude`    | Paid (API)      | `ANTHROPIC_API_KEY` | opt-in |
+| Provider    | Cost          | Needs               | Default  |
+| ----------- | ------------- | ------------------- | -------- |
+| `ollama`    | Free, offline | Ollama installed    | ✅ yes    |
+| `heuristic` | Free, offline | nothing             | fallback |
+| `claude`    | Paid (API)    | `ANTHROPIC_API_KEY` | opt-in   |
 
 If no provider is reachable, Recall falls back to a heuristic description and
-keeps working. **The tool never breaks because an LLM is unavailable.**
+keeps working — the tool never breaks because an LLM is unavailable.
 
 ---
 
-## Status
-
-🚧 **Early development.** Implemented so far:
-
-- ✅ Phase 0 — project bootstrap, lazy config, `recall version`
-- ✅ Phase 1 — SQLite storage + FTS5 keyword search
-- ⬜ Phase 2 — AI description providers
-- ⬜ Phase 3 — semantic search (ChromaDB + embeddings)
-- ⬜ Phase 4 — shell hook & auto-capture
-- ⬜ Phase 5 — full CLI (`search`, `list`, `add`, `delete`, `install`, `sync`)
-- ⬜ Phase 6 — integration & quality gate
-- ⬜ Phase 7 — packaging & one-command install
-
-See the full [Roadmap](docs/ROADMAP.md) and [Architecture](docs/ARCHITECTURE.md).
-
----
-
-## Install (development)
+## Install
 
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+.
 
 ```bash
 git clone https://github.com/Surge77/recall
 cd recall
-uv sync --extra dev            # core + test deps
+uv sync
 uv run recall version
 ```
 
 Optional extras (installed on demand):
 
 ```bash
-uv sync --extra ai             # Ollama / Claude description providers
-uv sync --extra semantic       # ChromaDB + sentence-transformers (large)
+uv sync --extra ai         # Ollama / Claude description providers
+uv sync --extra semantic   # local semantic search (ChromaDB + embeddings)
 ```
 
 ---
 
-## Planned usage
+## Usage
 
 ```bash
 recall install                 # install the shell hook (zsh / bash)
@@ -92,20 +71,8 @@ recall sync --path ~/Dropbox/recall.db   # symlink the DB for cross-machine sync
 ```
 
 > **Platform note:** the auto-capture hook targets **zsh** and **bash**. Native
-> Windows PowerShell capture is tracked as future work; on Windows use WSL or
+> Windows PowerShell capture is not supported yet; on Windows use WSL or
 > Git Bash. All other commands work on every platform.
-
----
-
-## Testing
-
-```bash
-uv run pytest -v --cov=src/recall --cov-report=term-missing
-```
-
-The project follows test-driven development with an 80%+ coverage gate. Every
-module has a matching test file under `tests/`. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the workflow.
 
 ---
 
