@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 import typer
@@ -52,13 +53,47 @@ def _open_search() -> search_mod.SemanticSearch | None:
         return None
 
 
+_PS_EXES = ("pwsh", "powershell")
+_PROFILE_QUERY_TIMEOUT = 10.0
+
+
+def _powershell_exe() -> str | None:
+    """Path to a PowerShell executable (pwsh preferred), or None."""
+    for exe in _PS_EXES:
+        found = shutil.which(exe)
+        if found:
+            return found
+    return None
+
+
 def _detect_shell() -> str:
     shell_path = os.environ.get("SHELL", "")
     if "zsh" in shell_path:
         return "zsh"
     if "bash" in shell_path:
         return "bash"
+    if _powershell_exe() is not None:
+        return "powershell"
     return ""
+
+
+def _powershell_profile_path() -> Path | None:
+    """Resolve the current user's all-hosts PowerShell profile via ``$PROFILE``."""
+    exe = _powershell_exe()
+    if exe is None:
+        return None
+    try:
+        completed = subprocess.run(
+            [exe, "-NoProfile", "-Command", "$PROFILE.CurrentUserAllHosts"],
+            capture_output=True,
+            text=True,
+            timeout=_PROFILE_QUERY_TIMEOUT,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        logger.warning("could not resolve PowerShell profile: %s", error)
+        return None
+    path = completed.stdout.strip()
+    return Path(path) if path else None
 
 
 def _parse_tags(raw: str | None) -> list[str]:
@@ -124,13 +159,14 @@ def install() -> None:
     shell = _detect_shell()
     if not shell:
         _console.print(
-            "[red]Could not detect zsh or bash from $SHELL.[/red] "
-            "On Windows, use WSL or Git Bash."
+            "[red]Could not detect zsh, bash or PowerShell.[/red] "
+            "On Windows, run from PowerShell, or use WSL or Git Bash."
         )
         raise typer.Exit(code=1)
-    rc_file = capture_mod.install_hook(shell)
+    rc_path = _powershell_profile_path() if shell == "powershell" else None
+    rc_file = capture_mod.install_hook(shell, rc_path)
     _console.print(
-        f"[green]Hook installed[/green] in {rc_file}. "
+        f"[green]Hook installed[/green] in {rc_file} ({shell}). "
         "Restart your terminal to activate."
     )
 

@@ -130,6 +130,29 @@ def test_install_hook_writes_bash_block(tmp_path: Path) -> None:
     assert 'recall _capture "$BASH_COMMAND"' in text
 
 
+def test_install_hook_writes_powershell_block(tmp_path: Path) -> None:
+    rc = tmp_path / "profile.ps1"
+    returned = capture.install_hook("powershell", rc)
+    text = rc.read_text(encoding="utf-8")
+    assert returned == rc
+    assert "# recall auto-capture hook" in text
+    assert "Set-PSReadLineOption -AddToHistoryHandler" in text
+    assert "recall _capture $line" in text
+
+
+def test_install_hook_powershell_creates_missing_profile_dir(tmp_path: Path) -> None:
+    rc = tmp_path / "PowerShell" / "Microsoft.PowerShell_profile.ps1"  # parent absent
+    capture.install_hook("powershell", rc)
+    assert rc.exists()
+
+
+def test_install_hook_powershell_is_idempotent(tmp_path: Path) -> None:
+    rc = tmp_path / "profile.ps1"
+    capture.install_hook("powershell", rc)
+    capture.install_hook("powershell", rc)
+    assert rc.read_text(encoding="utf-8").count("# recall auto-capture hook") == 1
+
+
 def test_install_hook_is_idempotent(tmp_path: Path) -> None:
     rc = tmp_path / ".zshrc"
     capture.install_hook("zsh", rc)

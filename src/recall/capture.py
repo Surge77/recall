@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 _TRIVIAL_COMMANDS = frozenset({"cd", "ls", "pwd", "exit", "clear", "history"})
 _MARKER = "# recall auto-capture hook"
 _RC_FILES = {"zsh": ".zshrc", "bash": ".bashrc"}
+_PS_PROFILE = Path("Documents") / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
 
 _HOOK_BLOCKS = {
     "zsh": (
@@ -34,6 +35,17 @@ _HOOK_BLOCKS = {
         f"\n{_MARKER}\n"
         '_recall_hook() {{ recall _capture "$BASH_COMMAND" & }}\n'
         "trap '_recall_hook' DEBUG\n"
+    ),
+    # PowerShell has no preexec; PSReadLine's AddToHistoryHandler fires for each
+    # submitted line before it runs. The `&` operator backgrounds the capture
+    # so the prompt is never blocked. Returning $true preserves normal history.
+    "powershell": (
+        f"\n{_MARKER}\n"
+        "Set-PSReadLineOption -AddToHistoryHandler {\n"
+        "    param([string]$line)\n"
+        "    recall _capture $line &\n"
+        "    return $true\n"
+        "}\n"
     ),
 }
 
@@ -86,16 +98,25 @@ def capture(
     logger.info("captured snippet %d", snippet.id)
 
 
-def install_hook(shell: str, rc_path: Path | None = None) -> Path:
-    """Append the capture hook to the shell's rc file. Idempotent.
+def _default_rc_path(shell: str) -> Path:
+    """Default rc/profile file for a shell, relative to the user's home."""
+    if shell == "powershell":
+        return Path.home() / _PS_PROFILE
+    return Path.home() / _RC_FILES[shell]
 
-    Returns the rc file path written. Raises ``ValueError`` for unsupported
-    shells. ``rc_path`` overrides the default ``~/.zshrc`` / ``~/.bashrc``.
+
+def install_hook(shell: str, rc_path: Path | None = None) -> Path:
+    """Append the capture hook to the shell's rc/profile file. Idempotent.
+
+    Returns the file path written. Raises ``ValueError`` for unsupported shells.
+    ``rc_path`` overrides the default rc/profile location (the PowerShell profile
+    path is best resolved by the caller via ``$PROFILE``).
     """
     shell = shell.lower()
     if shell not in _HOOK_BLOCKS:
-        raise ValueError(f"unsupported shell: {shell!r} (expected zsh or bash)")
-    rc_file = rc_path or (Path.home() / _RC_FILES[shell])
+        raise ValueError(f"unsupported shell: {shell!r} (expected zsh, bash or powershell)")
+    rc_file = rc_path or _default_rc_path(shell)
+    rc_file.parent.mkdir(parents=True, exist_ok=True)
     existing = rc_file.read_text(encoding="utf-8") if rc_file.exists() else ""
     if _MARKER in existing:
         return rc_file

@@ -81,9 +81,9 @@ recall delete 12               # remove a snippet
 recall sync --path ~/Dropbox/recall.db   # symlink the DB for cross-machine sync
 ```
 
-> **Platform note:** the auto-capture hook targets **zsh** and **bash**. Native
-> Windows PowerShell capture is not supported yet; on Windows use WSL or
-> Git Bash. All other commands work on every platform.
+> **Platform note:** the auto-capture hook supports **zsh**, **bash** and
+> **PowerShell** (7+, via PSReadLine). On Windows you can run Recall natively in
+> PowerShell, or use WSL / Git Bash. All other commands work on every platform.
 
 ---
 

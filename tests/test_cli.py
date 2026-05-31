@@ -36,7 +36,7 @@ def test_no_args_exits_nonzero_with_help() -> None:
 def test_install_reports_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SHELL", "/usr/bin/zsh")
     written = tmp_path / ".zshrc"
-    monkeypatch.setattr(main.capture_mod, "install_hook", lambda shell: written)
+    monkeypatch.setattr(main.capture_mod, "install_hook", lambda shell, rc=None: written)
     result = runner.invoke(app, ["install"])
     assert result.exit_code == 0
     assert "Hook installed" in result.stdout
@@ -44,9 +44,63 @@ def test_install_reports_success(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 
 def test_install_fails_without_detectable_shell(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SHELL", "")
+    monkeypatch.setattr(main, "_powershell_exe", lambda: None)
     result = runner.invoke(app, ["install"])
     assert result.exit_code == 1
     assert "Could not detect" in result.stdout
+
+
+def test_install_detects_powershell_and_uses_profile(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("SHELL", "")  # no unix shell
+    monkeypatch.setattr(main, "_powershell_exe", lambda: "pwsh")
+    profile = tmp_path / "Microsoft.PowerShell_profile.ps1"
+    monkeypatch.setattr(main, "_powershell_profile_path", lambda: profile)
+    seen: dict[str, object] = {}
+    monkeypatch.setattr(
+        main.capture_mod,
+        "install_hook",
+        lambda shell, rc=None: seen.update(shell=shell, rc=rc) or profile,
+    )
+    result = runner.invoke(app, ["install"])
+    assert result.exit_code == 0
+    assert seen == {"shell": "powershell", "rc": profile}
+    assert "powershell" in result.stdout
+
+
+def test_powershell_exe_prefers_pwsh(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        main.shutil, "which", lambda name: "/usr/bin/pwsh" if name == "pwsh" else None
+    )
+    assert main._powershell_exe() == "/usr/bin/pwsh"
+
+
+def test_powershell_profile_path_parses_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "_powershell_exe", lambda: "pwsh")
+
+    class _Result:
+        stdout = "C:\\Users\\me\\profile.ps1\n"
+
+    monkeypatch.setattr(main.subprocess, "run", lambda *a, **k: _Result())
+    assert main._powershell_profile_path() == Path("C:\\Users\\me\\profile.ps1")
+
+
+def test_powershell_profile_path_none_without_exe(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(main, "_powershell_exe", lambda: None)
+    assert main._powershell_profile_path() is None
+
+
+def test_powershell_profile_path_handles_subprocess_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(main, "_powershell_exe", lambda: "pwsh")
+
+    def _boom(*_a: object, **_k: object) -> object:
+        raise OSError("executable vanished")
+
+    monkeypatch.setattr(main.subprocess, "run", _boom)
+    assert main._powershell_profile_path() is None
 
 
 def test_capture_command_is_silent_and_safe(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -75,7 +129,9 @@ def test_install_detects_bash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     monkeypatch.setenv("SHELL", "/bin/bash")
     seen: list[str] = []
     monkeypatch.setattr(
-        main.capture_mod, "install_hook", lambda shell: seen.append(shell) or (tmp_path / ".bashrc")
+        main.capture_mod,
+        "install_hook",
+        lambda shell, rc=None: seen.append(shell) or (tmp_path / ".bashrc"),
     )
     result = runner.invoke(app, ["install"])
     assert result.exit_code == 0
