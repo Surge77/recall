@@ -19,10 +19,11 @@ logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "You are a CLI command documenter. Given a shell command, write a short "
-    "plain-English description of what it does. Max 10 words. No punctuation at "
-    "end. Be specific, not generic. Focus on the effect, not the syntax."
+    "plain-English description of what it does. Max 15 words, one complete "
+    "phrase. No punctuation at end. Be specific, not generic. Focus on the "
+    "effect, not the syntax."
 )
-MAX_WORDS = 10
+MAX_WORDS = 15
 MAX_TOKENS = 64
 OLLAMA_TIMEOUT = 20.0
 _SKIP_PREFIX_TOKENS = frozenset({"sudo", "env", "command", "time", "nohup"})
