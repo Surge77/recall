@@ -43,9 +43,20 @@ def test_heuristic_empty_command() -> None:
     assert ai._heuristic_description("   ") == "shell command"
 
 
-def test_normalize_trims_and_caps() -> None:
+def test_normalize_trims_whitespace_and_trailing_period() -> None:
     assert ai._normalize("Remove   all stopped containers.") == "Remove all stopped containers"
-    long = " ".join(str(n) for n in range(20))
+
+
+def test_normalize_keeps_only_first_sentence() -> None:
+    assert ai._normalize("Compress logs into a zip. Useful for backups.") == "Compress logs into a zip"
+
+
+def test_normalize_strips_filler_prefix() -> None:
+    assert ai._normalize("This command lists all running pods") == "lists all running pods"
+
+
+def test_normalize_caps_runaway_output() -> None:
+    long = " ".join(str(n) for n in range(40))
     assert len(ai._normalize(long).split()) == ai.MAX_WORDS
 
 

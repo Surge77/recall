@@ -18,12 +18,16 @@ from recall.config import Config, get_config
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
-    "You are a CLI command documenter. Given a shell command, write a short "
-    "plain-English description of what it does. Max 15 words, one complete "
-    "phrase. No punctuation at end. Be specific, not generic. Focus on the "
+    "You are a CLI command documenter. Given a shell command, reply with ONE "
+    "short sentence describing what it does. Do not start with 'This command' "
+    "or 'This'. No trailing period. Be specific, not generic. Focus on the "
     "effect, not the syntax."
 )
-MAX_WORDS = 15
+# Primary truncation is the first sentence; this is only a safety net for
+# runaway output with no sentence boundary.
+MAX_WORDS = 25
+_FILLER_PREFIXES = ("this command ", "the command ", "this script ", "this ")
+_SENTENCE_TERMINATORS = (". ", "! ", "? ")
 MAX_TOKENS = 64
 OLLAMA_TIMEOUT = 20.0
 _SKIP_PREFIX_TOKENS = frozenset({"sudo", "env", "command", "time", "nohup"})
@@ -36,10 +40,31 @@ class DescriptionProvider(Protocol):
     def describe(self, command: str) -> str: ...
 
 
+def _strip_filler_prefix(text: str) -> str:
+    """Drop a leading filler clause like 'This command ' so it reads tersely."""
+    lowered = text.lower()
+    for prefix in _FILLER_PREFIXES:
+        if lowered.startswith(prefix):
+            return text[len(prefix):]
+    return text
+
+
 def _normalize(text: str) -> str:
-    """Collapse whitespace, cap at MAX_WORDS, strip trailing punctuation."""
-    words = " ".join(text.strip().split()).split(" ")[:MAX_WORDS]
-    return " ".join(words).rstrip(".!?,;: ")
+    """Produce a clean, complete description.
+
+    Collapses whitespace, drops a filler prefix, keeps the first sentence (so
+    output never ends mid-phrase), then applies MAX_WORDS only as a safety net.
+    """
+    collapsed = _strip_filler_prefix(" ".join(text.strip().split()))
+    for terminator in _SENTENCE_TERMINATORS:
+        index = collapsed.find(terminator)
+        if index != -1:
+            collapsed = collapsed[:index]
+            break
+    words = collapsed.split(" ")
+    if len(words) > MAX_WORDS:
+        collapsed = " ".join(words[:MAX_WORDS])
+    return collapsed.rstrip(".!?,;: ").strip()
 
 
 def _heuristic_description(command: str) -> str:
