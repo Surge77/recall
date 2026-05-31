@@ -79,3 +79,205 @@ def test_install_detects_bash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
     result = runner.invoke(app, ["install"])
     assert result.exit_code == 0
     assert seen == ["bash"]
+
+
+# --- Phase 5: add -----------------------------------------------------------
+
+def test_add_stores_command_with_explicit_description(recall_home: Path) -> None:
+    result = runner.invoke(
+        app, ["add", "docker system prune -af", "--desc", "remove unused images"]
+    )
+    assert result.exit_code == 0
+    assert "Added" in result.stdout
+    db = main._open_db()
+    stored = db.keyword_search("prune")
+    assert len(stored) == 1
+    assert stored[0].description == "remove unused images"
+    assert stored[0].source == "manual"
+
+
+def test_add_parses_comma_separated_tags(recall_home: Path) -> None:
+    result = runner.invoke(
+        app, ["add", "git rebase -i HEAD~3", "--desc", "interactive rebase", "--tags", "git, vcs"]
+    )
+    assert result.exit_code == 0
+    db = main._open_db()
+    snippet = db.keyword_search("rebase")[0]
+    assert snippet.tags == ["git", "vcs"]
+
+
+def test_add_generates_description_when_omitted(
+    recall_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main, "generate_description", lambda command: "auto text")
+    result = runner.invoke(app, ["add", "kubectl get pods --all-namespaces"])
+    assert result.exit_code == 0
+    db = main._open_db()
+    assert db.keyword_search("kubectl")[0].description == "auto text"
+
+
+def test_add_rejects_duplicate_command(recall_home: Path) -> None:
+    runner.invoke(app, ["add", "terraform apply -auto-approve", "--desc", "apply"])
+    result = runner.invoke(app, ["add", "terraform apply -auto-approve", "--desc", "again"])
+    assert result.exit_code == 1
+    assert "already" in result.stdout.lower()
+
+
+# --- Phase 5: list ----------------------------------------------------------
+
+def test_list_shows_stored_snippets(recall_home: Path) -> None:
+    runner.invoke(app, ["add", "docker compose up -d", "--desc", "start containers"])
+    result = runner.invoke(app, ["list"])
+    assert result.exit_code == 0
+    assert "start containers" in result.stdout
+
+
+def test_list_empty_reports_no_snippets(recall_home: Path) -> None:
+    result = runner.invoke(app, ["list"])
+    assert result.exit_code == 0
+    assert "No snippets" in result.stdout
+
+
+def test_list_filters_by_tag(recall_home: Path) -> None:
+    runner.invoke(app, ["add", "git push origin main", "--desc", "push", "--tags", "git"])
+    runner.invoke(app, ["add", "docker ps --all", "--desc", "containers", "--tags", "docker"])
+    result = runner.invoke(app, ["list", "--tag", "docker"])
+    assert result.exit_code == 0
+    assert "containers" in result.stdout
+    assert "push" not in result.stdout
+
+
+# --- Phase 5: delete --------------------------------------------------------
+
+def test_delete_with_yes_removes_snippet(recall_home: Path) -> None:
+    runner.invoke(app, ["add", "rm -rf node_modules", "--desc", "clean deps"])
+    db = main._open_db()
+    snippet_id = db.keyword_search("node_modules")[0].id
+    result = runner.invoke(app, ["delete", str(snippet_id), "--yes"])
+    assert result.exit_code == 0
+    assert "Deleted" in result.stdout
+    assert main._open_db().get(snippet_id) is None
+
+
+def test_delete_missing_id_reports_error(recall_home: Path) -> None:
+    result = runner.invoke(app, ["delete", "999", "--yes"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout.lower()
+
+
+def test_delete_aborts_when_not_confirmed(recall_home: Path) -> None:
+    runner.invoke(app, ["add", "kubectl delete pod web", "--desc", "delete pod"])
+    db = main._open_db()
+    snippet_id = db.keyword_search("kubectl")[0].id
+    result = runner.invoke(app, ["delete", str(snippet_id)], input="n\n")
+    assert result.exit_code == 0
+    assert main._open_db().get(snippet_id) is not None
+
+
+# --- Phase 5: search --------------------------------------------------------
+
+class _FakeSearch:
+    """Stand-in for SemanticSearch returning preset ids."""
+
+    def __init__(self, ids: list[int]) -> None:
+        self._ids = ids
+
+    def search(self, query: str, n_results: int = 10) -> list[int]:
+        return self._ids
+
+
+def test_search_uses_semantic_results_and_copies_top_hit(
+    recall_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner.invoke(app, ["add", "docker system prune -af", "--desc", "free disk"])
+    db = main._open_db()
+    snippet_id = db.keyword_search("prune")[0].id
+    monkeypatch.setattr(main, "_open_search", lambda: _FakeSearch([snippet_id]))
+    copied: list[str] = []
+    monkeypatch.setattr(main, "_copy_to_clipboard", lambda text: copied.append(text))
+    result = runner.invoke(app, ["search", "reclaim space"])
+    assert result.exit_code == 0
+    assert "free disk" in result.stdout
+    assert copied == ["docker system prune -af"]
+
+
+def test_search_falls_back_to_keyword_when_no_semantic(
+    recall_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner.invoke(app, ["add", "tar -czf backup.tgz ./data", "--desc", "compress data"])
+    monkeypatch.setattr(main, "_open_search", lambda: None)
+    monkeypatch.setattr(main, "_copy_to_clipboard", lambda text: None)
+    result = runner.invoke(app, ["search", "backup"])
+    assert result.exit_code == 0
+    assert "compress data" in result.stdout
+
+
+def test_search_no_results_reports_cleanly(
+    recall_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main, "_open_search", lambda: None)
+    result = runner.invoke(app, ["search", "nonexistent xyzzy"])
+    assert result.exit_code == 0
+    assert "No matching" in result.stdout
+
+
+# --- Phase 5: sync ----------------------------------------------------------
+
+def test_sync_moves_db_and_links_to_target(
+    recall_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner.invoke(app, ["add", "echo hello world from recall", "--desc", "greet"])
+    db_path = main.get_config().db_path
+    assert db_path.exists()
+    target = recall_home / "remote" / "recall.db"
+    links: list[tuple[Path, Path]] = []
+    monkeypatch.setattr(
+        main.Path, "symlink_to", lambda self, dest: links.append((self, Path(dest)))
+    )
+    result = runner.invoke(app, ["sync", "--path", str(target)])
+    assert result.exit_code == 0
+    assert "Linked" in result.stdout
+    assert target.exists()  # local db moved to target
+    assert links and links[0][1] == target.resolve()
+
+
+def test_sync_reports_symlink_failure_human_readably(
+    recall_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner.invoke(app, ["add", "echo a slightly longer command here", "--desc", "x"])
+    target = recall_home / "remote" / "recall.db"
+
+    def _boom(self: Path, dest: object) -> None:
+        raise OSError("symlinks require Developer Mode")
+
+    monkeypatch.setattr(main.Path, "symlink_to", _boom)
+    result = runner.invoke(app, ["sync", "--path", str(target)])
+    assert result.exit_code == 1
+    assert "symlink" in result.stdout.lower()
+    assert "Traceback" not in result.stdout
+
+
+def test_sync_adopts_existing_target_with_yes(
+    recall_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner.invoke(app, ["add", "echo local data goes away on adopt", "--desc", "local"])
+    db_path = main.get_config().db_path
+    target = recall_home / "remote" / "recall.db"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("remote-db", encoding="utf-8")
+    monkeypatch.setattr(main.Path, "symlink_to", lambda self, dest: None)
+    result = runner.invoke(app, ["sync", "--path", str(target), "--yes"])
+    assert result.exit_code == 0
+    assert "Linked" in result.stdout
+    assert not db_path.exists()  # local discarded in favour of the target
+
+
+def test_sync_creates_target_when_no_local_db(
+    recall_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    assert not main.get_config().db_path.exists()
+    target = recall_home / "remote" / "recall.db"
+    monkeypatch.setattr(main.Path, "symlink_to", lambda self, dest: None)
+    result = runner.invoke(app, ["sync", "--path", str(target)])
+    assert result.exit_code == 0
+    assert target.exists()
