@@ -173,6 +173,20 @@ def test_add_generates_description_when_omitted(
     assert db.keyword_search("kubectl")[0].description == "auto text"
 
 
+def test_add_survives_index_failure(recall_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # A ChromaDB failure must not fail the DB write or surface a traceback.
+    class _BadSearch:
+        def add(self, *_a: object, **_k: object) -> None:
+            raise RuntimeError("chroma index unavailable")
+
+    monkeypatch.setattr(main, "_open_search", lambda: _BadSearch())
+    monkeypatch.setattr(main, "generate_description", lambda command: "desc")
+    result = runner.invoke(app, ["add", "rsync -avz ./src remote:/backup/src"])
+    assert result.exit_code == 0
+    assert "Added" in result.stdout
+    assert main._open_db().keyword_search("rsync")[0].command == "rsync -avz ./src remote:/backup/src"
+
+
 def test_add_rejects_duplicate_command(recall_home: Path) -> None:
     runner.invoke(app, ["add", "terraform apply -auto-approve", "--desc", "apply"])
     result = runner.invoke(app, ["add", "terraform apply -auto-approve", "--desc", "again"])

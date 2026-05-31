@@ -11,6 +11,7 @@ import logging
 import os
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -53,6 +54,22 @@ def _open_search() -> search_mod.SemanticSearch | None:
     except Exception as error:  # noqa: BLE001 - semantic search is best-effort
         logger.warning("semantic search unavailable: %s", error)
         return None
+
+
+def _reindex(action: Callable[[search_mod.SemanticSearch], None]) -> None:
+    """Run a best-effort semantic-index update.
+
+    The Chroma index is a rebuildable cache, never the source of truth, so a
+    failure here is logged and swallowed — it must never fail the DB operation
+    or surface a traceback to the user.
+    """
+    search = _open_search()
+    if search is None:
+        return
+    try:
+        action(search)
+    except Exception as error:  # noqa: BLE001 - index is best-effort, never blocks
+        logger.warning("semantic index update failed: %s", error)
 
 
 _PS_EXES = ("pwsh", "powershell")
@@ -155,9 +172,7 @@ def add(
         raise typer.Exit(code=1)
     description = desc or generate_description(command)
     snippet = db.add(command, description, tags=_parse_tags(tags), source="manual")
-    search = _open_search()
-    if search is not None:
-        search.add(snippet.id, snippet.command, snippet.description)
+    _reindex(lambda search: search.add(snippet.id, snippet.command, snippet.description))
     _console.print(f"[green]Added[/green] snippet {snippet.id}: {description}")
 
 
@@ -207,9 +222,7 @@ def delete(
         _console.print("Aborted.")
         return
     db.delete(snippet_id)
-    search = _open_search()
-    if search is not None:
-        search.delete(snippet_id)
+    _reindex(lambda search: search.delete(snippet_id))
     _console.print(f"[green]Deleted[/green] snippet {snippet_id}.")
 
 
@@ -271,9 +284,7 @@ def redescribe(
         description = generate_description(snippet.command)
         db.update_description(snippet.id, description)
         _console.print(f"[green]{snippet.id}[/green] {description}")
-    search = _open_search()
-    if search is not None:
-        search.sync_from_db(db.list_all())
+    _reindex(lambda search: search.sync_from_db(db.list_all()))
     _console.print(f"[dim]Redescribed {len(targets)} snippet(s).[/dim]")
 
 
