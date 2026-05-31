@@ -64,10 +64,11 @@ def test_capture_command_is_silent_and_safe(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_capture_command_real_glue_noop(recall_home: Path) -> None:
     # Exercises _open_db / _open_search for real; a trivial command no-ops
-    # (no LLM, no network) and stores nothing.
+    # (no LLM, no network) and stores nothing — regardless of whether the
+    # optional semantic extra is installed.
     result = runner.invoke(app, ["_capture", "ls"])
     assert result.exit_code == 0
-    assert not (recall_home / "data" / "chroma").exists()  # no semantic extra
+    assert main._open_db().list_all() == []
 
 
 def test_install_detects_bash(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
