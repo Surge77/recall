@@ -231,6 +231,40 @@ def test_delete_aborts_when_not_confirmed(recall_home: Path) -> None:
     assert main._open_db().get(snippet_id) is not None
 
 
+# --- redescribe -------------------------------------------------------------
+
+def test_redescribe_single_id(recall_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["add", "tar -czf out.tgz ./data right here now", "--desc", "old"])
+    monkeypatch.setattr(main, "_open_search", lambda: None)
+    monkeypatch.setattr(main, "generate_description", lambda command: "compress data into an archive")
+    snippet_id = main._open_db().list_all()[0].id
+    result = runner.invoke(app, ["redescribe", str(snippet_id)])
+    assert result.exit_code == 0
+    assert main._open_db().get(snippet_id).description == "compress data into an archive"
+
+
+def test_redescribe_all(recall_home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    runner.invoke(app, ["add", "git push origin feature-branch now please", "--desc", "old1"])
+    runner.invoke(app, ["add", "docker compose up -d --build service", "--desc", "old2"])
+    monkeypatch.setattr(main, "_open_search", lambda: None)
+    monkeypatch.setattr(main, "generate_description", lambda command: "regenerated")
+    result = runner.invoke(app, ["redescribe"])
+    assert result.exit_code == 0
+    assert [s.description for s in main._open_db().list_all()] == ["regenerated", "regenerated"]
+
+
+def test_redescribe_missing_id_errors(recall_home: Path) -> None:
+    result = runner.invoke(app, ["redescribe", "999"])
+    assert result.exit_code == 1
+    assert "not found" in result.stdout.lower()
+
+
+def test_redescribe_empty_db_reports_cleanly(recall_home: Path) -> None:
+    result = runner.invoke(app, ["redescribe"])
+    assert result.exit_code == 0
+    assert "No snippets" in result.stdout
+
+
 # --- Phase 5: search --------------------------------------------------------
 
 class _FakeSearch:

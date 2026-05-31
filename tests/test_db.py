@@ -23,6 +23,19 @@ def test_get_returns_none_for_missing_id(db: SnippetDB) -> None:
     assert db.get(999) is None
 
 
+def test_update_description_changes_text_and_fts(db: SnippetDB) -> None:
+    snippet = db.add(DOCKER_CMD, "run docker run")
+    assert db.update_description(snippet.id, "start an nginx web server container") is True
+    assert db.get(snippet.id).description == "start an nginx web server container"
+    # FTS5 reflects the new wording (trigger-synced on UPDATE).
+    hits = db.keyword_search("nginx server")
+    assert any(hit.id == snippet.id for hit in hits)
+
+
+def test_update_description_missing_id_returns_false(db: SnippetDB) -> None:
+    assert db.update_description(999, "nope") is False
+
+
 def test_keyword_search_finds_by_command_word(db: SnippetDB) -> None:
     db.add(DOCKER_CMD, DOCKER_DESC)
     results = db.keyword_search("nginx")

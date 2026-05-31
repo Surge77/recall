@@ -15,7 +15,6 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.table import Table
 
 from recall import __version__
 from recall import capture as capture_mod
@@ -23,6 +22,9 @@ from recall import search as search_mod
 from recall.ai import generate_description
 from recall.config import get_config
 from recall.db import Snippet, SnippetDB
+from recall.render import copy_to_clipboard as _copy_to_clipboard
+from recall.render import parse_tags as _parse_tags
+from recall.render import render_snippets as _render_snippets
 
 logger = logging.getLogger(__name__)
 
@@ -94,37 +96,6 @@ def _powershell_profile_path() -> Path | None:
         return None
     path = completed.stdout.strip()
     return Path(path) if path else None
-
-
-def _parse_tags(raw: str | None) -> list[str]:
-    """Split a comma-separated ``--tags`` value into a clean list."""
-    if not raw:
-        return []
-    return [tag.strip() for tag in raw.split(",") if tag.strip()]
-
-
-def _copy_to_clipboard(text: str) -> None:
-    """Best-effort clipboard copy; never fails the command if unavailable."""
-    try:
-        import pyperclip
-
-        pyperclip.copy(text)
-    except Exception as error:  # noqa: BLE001 - clipboard is a nicety, not core
-        logger.debug("clipboard copy failed: %s", error)
-
-
-def _render_snippets(snippets: list[Snippet]) -> None:
-    """Print snippets as a rich table (id, command, description, runs)."""
-    table = Table(show_lines=False, expand=False)
-    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
-    table.add_column("Command", style="green", overflow="fold")
-    table.add_column("Description", overflow="fold")
-    table.add_column("Runs", justify="right", no_wrap=True)
-    for snippet in snippets:
-        table.add_row(
-            str(snippet.id), snippet.command, snippet.description, str(snippet.run_count)
-        )
-    _console.print(table)
 
 
 def _run_search(
@@ -277,6 +248,33 @@ def sync(
         )
         raise typer.Exit(code=1)
     _console.print(f"[green]Linked[/green] {db_path} -> {target}")
+
+
+@app.command()
+def redescribe(
+    snippet_id: int = typer.Argument(None, help="Only this snippet; omit to redo all."),
+) -> None:
+    """Regenerate AI descriptions for stored snippets (after fixing the LLM)."""
+    db = _open_db()
+    if snippet_id is not None:
+        target = db.get(snippet_id)
+        if target is None:
+            _console.print(f"[red]Snippet {snippet_id} not found.[/red]")
+            raise typer.Exit(code=1)
+        targets = [target]
+    else:
+        targets = db.list_all()
+    if not targets:
+        _console.print("No snippets to redescribe.")
+        return
+    for snippet in targets:
+        description = generate_description(snippet.command)
+        db.update_description(snippet.id, description)
+        _console.print(f"[green]{snippet.id}[/green] {description}")
+    search = _open_search()
+    if search is not None:
+        search.sync_from_db(db.list_all())
+    _console.print(f"[dim]Redescribed {len(targets)} snippet(s).[/dim]")
 
 
 @app.command(name="_capture", hidden=True)

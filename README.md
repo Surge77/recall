@@ -78,6 +78,7 @@ recall search "docker cleanup" # semantic search, copies top hit to clipboard
 recall list --tag docker       # browse saved snippets
 recall add "<cmd>" --tags net  # manual add (auto-describes if no --desc)
 recall delete 12               # remove a snippet
+recall redescribe              # regenerate AI descriptions (all, or one id)
 recall sync --path ~/Dropbox/recall.db   # symlink the DB for cross-machine sync
 ```
 

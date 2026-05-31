@@ -167,6 +167,18 @@ class SnippetDB:
             ).fetchall()
         return [_row_to_snippet(row) for row in rows]
 
+    def update_description(self, snippet_id: int, description: str) -> bool:
+        """Replace a snippet's description. Return True if a row was updated.
+
+        The ``snippets_au`` trigger keeps the FTS5 index in sync automatically.
+        """
+        with self._tx() as conn:
+            cursor = conn.execute(
+                "UPDATE snippets SET description = ? WHERE id = ?",
+                (description, snippet_id),
+            )
+            return cursor.rowcount > 0
+
     def increment_run_count(self, command: str) -> None:
         """Bump ``run_count`` for an existing command. No-op if absent."""
         with self._tx() as conn:
