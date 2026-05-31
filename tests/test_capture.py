@@ -61,7 +61,7 @@ def test_capture_stores_new_command(
 ) -> None:
     monkeypatch.setattr(capture, "generate_description", lambda c, cfg=None: "run nginx detached")
     search = RecordingSearch()
-    capture.capture(LONG_CMD, db, search, _cfg(tmp_path))
+    capture.capture(LONG_CMD, db, lambda: search, _cfg(tmp_path))
     stored = db.keyword_search("nginx")
     assert len(stored) == 1
     assert stored[0].source == "auto"
@@ -90,6 +90,24 @@ def test_capture_ignores_trivial_command(
     monkeypatch.setattr(capture, "generate_description", lambda c, cfg=None: "x")
     capture.capture("ls -la", db, None, _cfg(tmp_path))
     assert db.list_all() == []
+
+
+def test_capture_never_builds_search_for_skipped_or_duplicate(
+    db: SnippetDB, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The embedding model is expensive: the factory must not be called unless a
+    # new snippet is actually stored.
+    monkeypatch.setattr(capture, "generate_description", lambda c, cfg=None: "x")
+    calls: list[int] = []
+
+    def _factory() -> None:
+        calls.append(1)
+        raise AssertionError("search factory must not run here")
+
+    db.add(LONG_CMD, "run nginx", source="auto")
+    capture.capture(LONG_CMD, db, _factory, _cfg(tmp_path))  # duplicate -> increment
+    capture.capture("git status", db, _factory, _cfg(tmp_path))  # too short -> skip
+    assert calls == []
 
 
 # --- install_hook -----------------------------------------------------------

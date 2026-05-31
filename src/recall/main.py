@@ -247,7 +247,7 @@ def sync(
 def capture_command(command: str) -> None:
     """Internal: invoked by the shell hook after each command. Silent."""
     try:
-        capture_mod.capture(command, _open_db(), _open_search())
+        capture_mod.capture(command, _open_db(), _open_search)
     except Exception as error:  # noqa: BLE001 - must never disturb the shell
         logger.debug("capture failed: %s", error)
 

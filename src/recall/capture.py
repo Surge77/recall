@@ -9,6 +9,7 @@ executed, so there is no shell-injection surface here.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from recall.ai import generate_description
@@ -58,10 +59,14 @@ def should_capture(command: str, db: SnippetDB, cfg: Config | None = None) -> bo
 def capture(
     command: str,
     db: SnippetDB,
-    search: SemanticSearch | None = None,
+    open_search: Callable[[], SemanticSearch | None] | None = None,
     cfg: Config | None = None,
 ) -> None:
     """Store a new command (with description + index) or bump an existing one.
+
+    ``open_search`` is a zero-arg factory returning a ``SemanticSearch`` (or
+    None). It is invoked **only** when a new snippet is actually stored, so the
+    heavy embedding model never loads for duplicates or skipped commands.
 
     Silent by design — it runs in the background from the shell hook and writes
     only to the log, never to the user's terminal.
@@ -75,6 +80,7 @@ def capture(
         return
     description = generate_description(stripped, cfg)
     snippet = db.add(stripped, description, source="auto")
+    search = open_search() if open_search is not None else None
     if search is not None:
         search.add(snippet.id, snippet.command, snippet.description)
     logger.info("captured snippet %d", snippet.id)
