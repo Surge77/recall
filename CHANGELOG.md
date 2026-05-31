@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- PyPI distribution name is now `recall-snippets` (`recall-cli` and `recall`
+  were already taken). The import package and the installed `recall` command
+  are unchanged. Added PyPI trove classifiers.
+
 ### Fixed
 - A ChromaDB failure during `add` / `delete` / `redescribe` no longer aborts the
   operation or prints a traceback — semantic-index updates are now best-effort,

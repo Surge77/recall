@@ -1,12 +1,29 @@
 [project]
-name = "recall-cli"
+name = "recall-snippets"
 version = "0.2.0"
+# Distribution name is "recall-snippets" (recall-cli/recall were taken on PyPI);
+# the import package and the installed command are both still "recall".
 description = "Automated, AI-powered CLI snippet manager — auto-captures shell commands, describes them, and finds them by meaning."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "Recall contributors" }]
 keywords = ["cli", "shell", "snippets", "history", "semantic-search", "sqlite"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Utilities",
+    "Topic :: Software Development",
+    "Topic :: System :: Shells",
+]
 
 # Core stays light so `uv sync` is fast and offline-friendly.
 # Heavy AI / embedding stacks live in optional extras below.

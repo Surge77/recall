@@ -2484,7 +2484,7 @@ wheels = [
 ]
 
 [[package]]
-name = "recall-cli"
+name = "recall-snippets"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [

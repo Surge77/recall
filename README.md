@@ -109,7 +109,7 @@ its first word is **not** in `trivial_commands`, it is not a comment or a
 ## Uninstall
 
 ```bash
-uv tool uninstall recall-cli
+uv tool uninstall recall-snippets
 ```
 
 Then remove the hook block (marked `# recall auto-capture hook`) from your
