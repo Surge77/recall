@@ -17,6 +17,18 @@ def _cfg(tmp_path: Path, min_len: int = 40) -> Config:
     return Config(config_dir=tmp_path, data_dir=tmp_path, min_command_length=min_len)
 
 
+def test_should_capture_honors_custom_blocklist(db: SnippetDB, tmp_path: Path) -> None:
+    # "mkdir" is not blocked by default, but a config can add it.
+    long_mkdir = "mkdir -p src/components/ui/buttons/primary/icons"
+    assert capture.should_capture(long_mkdir, db, _cfg(tmp_path)) is True
+    custom = Config(
+        config_dir=tmp_path,
+        data_dir=tmp_path,
+        trivial_commands=frozenset({"mkdir"}),
+    )
+    assert capture.should_capture(long_mkdir, db, custom) is False
+
+
 class RecordingSearch:
     def __init__(self) -> None:
         self.added: list[tuple[int, str, str]] = []

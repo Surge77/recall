@@ -87,6 +87,24 @@ recall sync --path ~/Dropbox/recall.db   # symlink the DB for cross-machine sync
 
 ---
 
+## Configuration
+
+A `config.toml` is created on first run (location is per-OS via `platformdirs`,
+e.g. `%LOCALAPPDATA%\recall\config.toml` on Windows). Relevant capture knobs:
+
+```toml
+[capture]
+min_command_length = 40                                  # skip anything shorter
+trivial_commands = ["cd", "ls", "pwd", "exit", "clear", "history"]  # never captured
+```
+
+A command is auto-captured only if it is **≥ `min_command_length` characters**,
+its first word is **not** in `trivial_commands`, it is not a comment or a
+`recall …` call, and it is not already stored. Add your own noise commands
+(`git`, `npm`, `clear`, …) to `trivial_commands` to skip them.
+
+---
+
 ## Uninstall
 
 ```bash

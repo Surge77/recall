@@ -29,6 +29,7 @@ DEFAULT_MIN_COMMAND_LENGTH = 40
 DEFAULT_OLLAMA_MODEL = "llama3.2"
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 DEFAULT_CLAUDE_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_TRIVIAL_COMMANDS = frozenset({"cd", "ls", "pwd", "exit", "clear", "history"})
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class Config:
     config_dir: Path
     data_dir: Path
     min_command_length: int = DEFAULT_MIN_COMMAND_LENGTH
+    trivial_commands: frozenset[str] = DEFAULT_TRIVIAL_COMMANDS
     ai_provider: str = "ollama"  # "ollama" | "claude" | "heuristic"
     ollama_model: str = DEFAULT_OLLAMA_MODEL
     ollama_host: str = DEFAULT_OLLAMA_HOST
@@ -71,7 +73,10 @@ def _base_dirs() -> tuple[Path, Path]:
 
 def _default_file_contents() -> dict[str, Any]:
     return {
-        "capture": {"min_command_length": DEFAULT_MIN_COMMAND_LENGTH},
+        "capture": {
+            "min_command_length": DEFAULT_MIN_COMMAND_LENGTH,
+            "trivial_commands": sorted(DEFAULT_TRIVIAL_COMMANDS),
+        },
         "ai": {
             "provider": "ollama",
             "ollama_model": DEFAULT_OLLAMA_MODEL,
@@ -104,6 +109,7 @@ def get_config() -> Config:
         config_dir=config_dir,
         data_dir=data_dir,
         min_command_length=int(capture.get("min_command_length", DEFAULT_MIN_COMMAND_LENGTH)),
+        trivial_commands=frozenset(capture.get("trivial_commands", DEFAULT_TRIVIAL_COMMANDS)),
         ai_provider=str(ai.get("provider", "ollama")),
         ollama_model=str(ai.get("ollama_model", DEFAULT_OLLAMA_MODEL)),
         ollama_host=str(ai.get("ollama_host", DEFAULT_OLLAMA_HOST)),

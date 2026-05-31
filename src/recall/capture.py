@@ -19,7 +19,6 @@ from recall.search import SemanticSearch
 
 logger = logging.getLogger(__name__)
 
-_TRIVIAL_COMMANDS = frozenset({"cd", "ls", "pwd", "exit", "clear", "history"})
 _MARKER = "# recall auto-capture hook"
 _RC_FILES = {"zsh": ".zshrc", "bash": ".bashrc"}
 _PS_PROFILE = Path("Documents") / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
@@ -61,7 +60,7 @@ def should_capture(command: str, db: SnippetDB, cfg: Config | None = None) -> bo
     if not stripped or stripped.startswith("#"):
         return False
     first_token = stripped.split()[0]
-    if first_token == "recall" or first_token in _TRIVIAL_COMMANDS:
+    if first_token == "recall" or first_token in cfg.trivial_commands:
         return False
     if len(stripped) < cfg.min_command_length:
         return False

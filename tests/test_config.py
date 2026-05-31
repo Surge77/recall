@@ -55,3 +55,19 @@ def test_reads_existing_config_file(recall_home: Path) -> None:
     reloaded = config.get_config()
     assert reloaded.min_command_length == 99
     assert reloaded.ai_provider == "claude"
+    # absent from the written file -> falls back to the default blocklist
+    assert reloaded.trivial_commands == config.DEFAULT_TRIVIAL_COMMANDS
+
+
+def test_default_trivial_commands(recall_home: Path) -> None:
+    assert config.get_config().trivial_commands == config.DEFAULT_TRIVIAL_COMMANDS
+
+
+def test_custom_trivial_commands_from_file(recall_home: Path) -> None:
+    cfg = config.get_config()
+    (cfg.config_dir / "config.toml").write_text(
+        '[capture]\ntrivial_commands = ["git", "mkdir", "echo"]\n',
+        encoding="utf-8",
+    )
+    config.reset_config_cache()
+    assert config.get_config().trivial_commands == frozenset({"git", "mkdir", "echo"})
