@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-31
+
 ### Added
 - **PowerShell auto-capture** — native hook for PowerShell 7+ via PSReadLine's
   `AddToHistoryHandler`; `recall install` resolves the profile through
@@ -42,5 +44,6 @@ First working release. Everything runs locally and free by default.
 - Full CLI: `search`, `list`, `add`, `delete`, `sync`, `install`, `version`.
 - One-step installer (`scripts/install.sh`).
 
-[Unreleased]: https://github.com/Surge77/recall/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/Surge77/recall/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/Surge77/recall/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Surge77/recall/releases/tag/v0.1.0
