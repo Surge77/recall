@@ -40,10 +40,25 @@ keeps working — the tool never breaks because an LLM is unavailable.
 
 ## Install
 
-Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+.
+Requires Python 3.11+.
 
-**One-step install** (checks Python, installs `uv` if missing, installs the
-`recall` command globally, and wires the shell hook):
+**From PyPI** (simplest — works out of the box, zero config):
+
+```bash
+pip install recall-snippets          # or: uv tool install recall-snippets
+recall version
+recall install                       # wire up the shell hook
+```
+
+> **Zero-config:** a fresh install needs no LLM, no API key, and no extra
+> downloads. Capture, `add`, `list`, `search` (keyword), `delete` and
+> `redescribe` all work immediately. Descriptions use the built-in heuristic
+> until you install Ollama or set an API key; search uses SQLite FTS5 keyword
+> matching until you add the `semantic` extra. Both are optional upgrades, not
+> requirements — see [Free by default](#free-by-default).
+
+**One-step install from source** (checks Python, installs `uv` if missing,
+installs the `recall` command globally, and wires the shell hook):
 
 ```bash
 git clone https://github.com/Surge77/recall
@@ -65,6 +80,10 @@ Optional extras (installed on demand):
 ```bash
 uv sync --extra ai         # Ollama / Claude description providers
 uv sync --extra semantic   # local semantic search (ChromaDB + embeddings)
+
+# from a PyPI install:
+pip install "recall-snippets[ai]"
+pip install "recall-snippets[semantic]"
 ```
 
 ---
