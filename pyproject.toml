@@ -1,6 +1,6 @@
 [project]
 name = "recall-snippets"
-version = "0.2.0"
+version = "0.2.1"
 # Distribution name is "recall-snippets" (recall-cli/recall were taken on PyPI);
 # the import package and the installed command are both still "recall".
 description = "Automated, AI-powered CLI snippet manager — auto-captures shell commands, describes them, and finds them by meaning."

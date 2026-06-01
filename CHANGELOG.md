@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-01
+
 ### Changed
 - PyPI distribution name is now `recall-snippets` (`recall-cli` and `recall`
   were already taken). The import package and the installed `recall` command
@@ -16,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A ChromaDB failure during `add` / `delete` / `redescribe` no longer aborts the
   operation or prints a traceback — semantic-index updates are now best-effort,
   consistent with the index being a rebuildable cache.
+
+### Docs
+- README now documents the `pip install recall-snippets` path and a zero-config
+  note clarifying which features work with no LLM or extras installed.
 
 ## [0.2.0] - 2026-05-31
 
@@ -54,6 +60,7 @@ First working release. Everything runs locally and free by default.
 - Full CLI: `search`, `list`, `add`, `delete`, `sync`, `install`, `version`.
 - One-step installer (`scripts/install.sh`).
 
-[Unreleased]: https://github.com/Surge77/recall/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/Surge77/recall/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Surge77/recall/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/Surge77/recall/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/Surge77/recall/releases/tag/v0.1.0
